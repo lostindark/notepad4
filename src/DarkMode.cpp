@@ -10,6 +10,8 @@
 
 // Declared in Styles.cpp
 extern int np2StyleTheme;
+// Declared in Notepad4.cpp - this app's module handle
+extern HINSTANCE g_hInstance;
 
 // Thread-level hook to intercept WM_INITDIALOG and apply dark mode to dialogs
 static HHOOK s_hCallWndProcRetHook = nullptr;
@@ -17,7 +19,12 @@ static HHOOK s_hCallWndProcRetHook = nullptr;
 static LRESULT CALLBACK DarkMode_CallWndRetProc(int nCode, WPARAM wParam, LPARAM lParam) noexcept {
 	if (nCode == HC_ACTION) {
 		const CWPRETSTRUCT *cwpret = reinterpret_cast<const CWPRETSTRUCT *>(lParam);
-		if (cwpret->message == WM_INITDIALOG) {
+		// Only theme dialogs created by this app while dark mode is active.
+		// This avoids touching system dialogs (e.g. the common file open/save
+		// dialog) that are hosted in our process but owned by comdlg32/shell.
+		if (cwpret->message == WM_INITDIALOG
+			&& dmlib::isExperimentalActive()
+			&& reinterpret_cast<HINSTANCE>(GetWindowLongPtr(cwpret->hwnd, GWLP_HINSTANCE)) == g_hInstance) {
 			DarkMode_ApplyToDialog(cwpret->hwnd);
 		}
 	}
@@ -113,10 +120,36 @@ void DarkMode_OnThemeChanged(int newTheme) noexcept {
 	}
 }
 
+// Broadcast WM_THEMECHANGED to a window and all its descendants so that
+// themed controls (including scroll bars) re-open their theme handles.
+static BOOL CALLBACK DarkMode_SendThemeChangedProc(HWND hwnd, LPARAM /*lParam*/) noexcept {
+	SendMessage(hwnd, WM_THEMECHANGED, 0, 0);
+	return TRUE;
+}
+
+void DarkMode_BroadcastThemeChanged(HWND hwnd) noexcept {
+	if (hwnd == nullptr) {
+		return;
+	}
+	SendMessage(hwnd, WM_THEMECHANGED, 0, 0);
+	EnumChildWindows(hwnd, DarkMode_SendThemeChangedProc, 0);
+}
+
 bool DarkMode_HandleSettingChange([[maybe_unused]] HWND hwnd, LPARAM lParam) noexcept {
 	return dmlib::handleSettingChange(lParam);
 }
 
 bool DarkMode_IsEnabled() noexcept {
 	return dmlib::isExperimentalActive();
+}
+
+int DarkMode_MessageBox(HWND hwnd, LPCWSTR text, LPCWSTR caption, UINT uType, WORD wLanguageId) noexcept {
+	if (dmlib::isExperimentalActive()) {
+		const HRESULT hr = dmlib::darkMessageBoxW(hwnd, text, caption, uType);
+		if (hr > 0) {
+			return static_cast<int>(hr);
+		}
+		// Fall through to MessageBoxEx on failure.
+	}
+	return MessageBoxEx(hwnd, text, caption, uType, wLanguageId);
 }

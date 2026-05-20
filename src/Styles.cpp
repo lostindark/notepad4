@@ -1201,6 +1201,9 @@ void Style_OnStyleThemeChanged(int theme) noexcept {
 	DarkMode_OnThemeChanged(theme);
 	if (hwndMain) {
 		DarkMode_ApplyToWindow(hwndMain);
+		// Make controls (including scroll bars) re-open theme handles so
+		// they pick up the new light/dark scroll bar style.
+		DarkMode_BroadcastThemeChanged(hwndMain);
 		RedrawWindow(hwndMain, nullptr, nullptr, RDW_INVALIDATE | RDW_ERASE | RDW_ALLCHILDREN | RDW_UPDATENOW | RDW_FRAME);
 	}
 

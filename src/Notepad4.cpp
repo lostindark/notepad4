@@ -1992,6 +1992,10 @@ void CreateBars(HWND hwnd, HINSTANCE hInstance) noexcept {
 	dmlib::setDarkExplorerTheme(hwndToolbar);
 	dmlib::setStatusBarCtrlSubclass(hwndStatus);
 	dmlib::setWindowEraseBgSubclass(hwndReBar);
+	// Subclass the main window so darkmodelib can custom-draw toolbar buttons
+	// (dark hover/checked states) via the toolbar's NM_CUSTOMDRAW notifications,
+	// which the rebar forwards up to its parent.
+	dmlib::setWindowNotifyCustomDrawSubclass(hwnd);
 	dmlib::enableDarkScrollBarForWindowAndChildren(hwnd);
 
 	// Theme toolbar tooltips

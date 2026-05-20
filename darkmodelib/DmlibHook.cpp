@@ -23,6 +23,7 @@
 
 #if defined(_DARKMODELIB_USE_SCROLLBAR_FIX) && (_DARKMODELIB_USE_SCROLLBAR_FIX > 0)
 #include <mutex>
+#include <string_view>
 #include <unordered_set>
 #endif
 
@@ -168,7 +169,7 @@ static fnOpenNcThemeData pfOpenNcThemeData = nullptr;
 
 bool dmlib_hook::loadOpenNcThemeData(const HMODULE& hUxtheme) noexcept
 {
-	return LoadFn(hUxtheme, pfOpenNcThemeData, 49);
+	return dmlib_module::LoadFn(hUxtheme, pfOpenNcThemeData, 49);
 }
 
 #if defined(_DARKMODELIB_USE_SCROLLBAR_FIX) && (_DARKMODELIB_USE_SCROLLBAR_FIX > 1)
@@ -214,7 +215,7 @@ static bool isWindowOrParentUsingDarkScrollBar(HWND hWnd)
 static HTHEME WINAPI MyOpenNcThemeData(HWND hWnd, LPCWSTR pszClassList)
 {
 	static constexpr std::wstring_view scrollBarClassName = WC_SCROLLBAR;
-	if (scrollBarClassName == pszClassList)
+	if (scrollBarClassName == pszClassList && dmlib_win32api::IsDarkModeActive())
 	{
 #if defined(_DARKMODELIB_USE_SCROLLBAR_FIX) && (_DARKMODELIB_USE_SCROLLBAR_FIX > 1)
 		if (isWindowOrParentUsingDarkScrollBar(hWnd))
@@ -229,7 +230,7 @@ static HTHEME WINAPI MyOpenNcThemeData(HWND hWnd, LPCWSTR pszClassList)
 
 void dmlib_hook::fixDarkScrollBar()
 {
-	const ModuleHandle moduleComctl(L"comctl32.dll");
+	const dmlib_module::ModuleHandle moduleComctl(L"comctl32.dll");
 	if (moduleComctl.isLoaded())
 	{
 		auto* addr = iat_hook::FindDelayLoadThunkInModule(moduleComctl.get(), "uxtheme.dll", 49); // OpenNcThemeData
